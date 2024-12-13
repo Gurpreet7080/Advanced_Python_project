@@ -5,53 +5,55 @@ import base64
 import matplotlib.pyplot as plt
 from io import BytesIO
 import streamlit as st
+import nltk
 from nltk.corpus import stopwords
 from nltk.stem.porter import PorterStemmer
 
-# nltk.download('stopwords')
+# Download stopwords if not already downloaded
+nltk.download('stopwords')
+
+# Set stopwords and initialize the stemmer
 STOPWORDS = set(stopwords.words("english"))
+stemmer = PorterStemmer()
 
 # Load the models and transformers
-predictor = pickle.load(open(r"Models/model_xgb.pkl", "rb"))
-scaler = pickle.load(open(r"Models/scaler.pkl", "rb"))
-cv = pickle.load(open(r"Models/countVectorizer.pkl", "rb"))
+predictor = pickle.load(open("Models/model_xgb.pkl", "rb"))
+scaler = pickle.load(open("Models/scaler.pkl", "rb"))
+cv = pickle.load(open("Models/countVectorizer.pkl", "rb"))
 
-# Title of the web app
+# Streamlit UI setup
 st.title("Sentiment Analysis")
-
-# Sidebar for file upload or text input
 option = st.sidebar.selectbox("Choose Input Type", ("Text Input", "Bulk CSV"))
 
 # Function for single prediction
 def single_prediction(predictor, scaler, cv, text_input):
     corpus = []
-    stemmer = PorterStemmer()
 
-    # Preprocessing
+    # Preprocessing: cleaning and stemming the text
     review = re.sub("[^a-zA-Z]", " ", text_input)
     review = review.lower().split()
     review = [stemmer.stem(word) for word in review if word not in STOPWORDS]
     review = " ".join(review)
-    
-    st.write(f"Processed review: {review}")  # Print processed review text
-    
+
     corpus.append(review)
+
+    # Convert review into feature vector
     X_prediction = cv.transform(corpus).toarray()
-    
+
+    # Scaling the features
     X_prediction_scl = scaler.transform(X_prediction)
-    
-    # Get prediction
+
+    # Get prediction probabilities
     y_predictions = predictor.predict_proba(X_prediction_scl)
-    
+
     # Get the predicted class
     y_predictions = y_predictions.argmax(axis=1)[0]
-    
+
     return "Positive" if y_predictions == 1 else "Negative"
 
-# Function for bulk predictions
+# Function for bulk prediction
 def bulk_prediction(predictor, scaler, cv, data):
     corpus = []
-    stemmer = PorterStemmer()
 
     for i in range(0, data.shape[0]):
         review = re.sub("[^a-zA-Z]", " ", data.iloc[i]["Sentence"])
@@ -60,9 +62,16 @@ def bulk_prediction(predictor, scaler, cv, data):
         review = " ".join(review)
         corpus.append(review)
 
+    # Convert reviews to feature vectors
     X_prediction = cv.transform(corpus).toarray()
+
+    # Scaling the features
     X_prediction_scl = scaler.transform(X_prediction)
+
+    # Get prediction probabilities
     y_predictions = predictor.predict_proba(X_prediction_scl)
+
+    # Get the predicted classes
     y_predictions = y_predictions.argmax(axis=1)
     y_predictions = list(map(sentiment_mapping, y_predictions))
 
@@ -112,15 +121,11 @@ def get_distribution_graph(data):
 
 # Main logic for text input or file upload
 if option == "Text Input":
-    user_input = st.text_area("Enter text for sentiment prediction")
-
-    if st.button("Predict Sentiment"):
-        if user_input:
-            # Call function to predict sentiment
-            prediction = single_prediction(predictor, scaler, cv, user_input)
-            st.subheader(f"Predicted Sentiment: {prediction}")
-        else:
-            st.error("Please enter some text.")
+    text_input = st.text_area("Enter Text for Sentiment Analysis")
+    
+    if text_input:
+        predicted_sentiment = single_prediction(predictor, scaler, cv, text_input)
+        st.write(f"Predicted Sentiment: {predicted_sentiment}")
 
 elif option == "Bulk CSV":
     file = st.file_uploader("Upload CSV file with 'Sentence' column", type=["csv"])
