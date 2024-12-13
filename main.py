@@ -123,9 +123,13 @@ def get_distribution_graph(data):
 if option == "Text Input":
     text_input = st.text_area("Enter Text for Sentiment Analysis")
     
-    if text_input:
-        predicted_sentiment = single_prediction(predictor, scaler, cv, text_input)
-        st.write(f"Predicted Sentiment: {predicted_sentiment}")
+    # Button to trigger prediction
+    if st.button("Predict Sentiment"):
+        if text_input:
+            predicted_sentiment = single_prediction(predictor, scaler, cv, text_input)
+            st.write(f"Predicted Sentiment: {predicted_sentiment}")
+        else:
+            st.write("Please enter a text to predict sentiment.")
 
 elif option == "Bulk CSV":
     file = st.file_uploader("Upload CSV file with 'Sentence' column", type=["csv"])
